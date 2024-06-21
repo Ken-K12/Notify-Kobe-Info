@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Define resources for using container by ECS on Fargate.
+  ■ create resources
+  - ECS
+    - IAM Role
+  - ECR
+
+# Metadata: 
+
+Parameters: 
+  RepositoryName:
+    Type: String
+    Description: "The name of the ECR Repository"
+    Default: "notify-kobe-info-repository"
+
+  ClusterName:
+    Type: String
+    Description: "The naem of the ECS Cluster"
+    Default: "notify-kobe-info-cluster"
+
+  TaskDefinitionFamily:
+    Type: String
+    Description: "The family name of the ECS task definition"
+    Default: "notify-kobe-info-family-name"
+
+  ContainerName:
+    Type: String
+    Description: "The name of the container in the task definition"
+    Default: "notify-kobe-info-container-name"
+  
+  ContainerImage:
+    Type: String
+    Description: "The image of the container"
+    Default: "notify-kobe-info-container-image"
+  
+  ContainerMemory:
+    Type: Number
+    Description: "The amount of memory (in MiB) to allocate to the container"
+    Default: 512
+  
+  ContainerCpu:
+    Type: Number
+    Description: "The number of CPU units to allocate to the container"
+    Default: 256
+
+  
+
+# Mappings: 
+
+# Conditions: 
+
+Resources: 
+  
+  ECRRepository:
+    Type: "AWS::ECR::Repository"
+    Properties:
+      RepositoryName: !Ref RepositoryName
+  
+  ECSCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: !Ref ClusterName
+  
+  ECSTaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      ContainerDefinitions:
+        - Name: !Ref ContainerName
+          Image: !Ref ContainerImage
+          Memory: !Ref ContainerMemory
+          Cpu: !Ref ContainerCpu
+          Essential: true
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+
+
+
+# Outputs:
