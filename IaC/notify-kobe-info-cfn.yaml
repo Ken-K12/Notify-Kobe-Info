@@ -66,11 +66,14 @@ Resources:
     Type: "AWS::ECS::TaskDefinition"
     Properties:
       Family: !Ref TaskDefinitionFamily
+      RequiresCompatibilities: 
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
       ContainerDefinitions:
         - Name: !Ref ContainerName
           Image: !Ref ContainerImage
-          Memory: !Ref ContainerMemory
-          Cpu: !Ref ContainerCpu
           Essential: true
           PortMappings:
             - ContainerPort: 80
