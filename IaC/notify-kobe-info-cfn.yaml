@@ -5,6 +5,9 @@ Description: >-
   - ECS
     - IAM Role
   - ECR
+  - VPC
+  - Subnet
+  - Security Group
 
 # Metadata: 
 
@@ -62,6 +65,34 @@ Resources:
     Properties:
       ClusterName: !Ref ClusterName
   
+  ECSExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ecs-tasks.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: "ecs-execution-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetAuthorizationToken"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
   ECSTaskDefinition:
     Type: "AWS::ECS::TaskDefinition"
     Properties:
@@ -71,6 +102,7 @@ Resources:
       NetworkMode: awsvpc
       Cpu: !Ref ContainerCpu
       Memory: !Ref ContainerMemory
+      ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
       ContainerDefinitions:
         - Name: !Ref ContainerName
           Image: !Ref ContainerImage
