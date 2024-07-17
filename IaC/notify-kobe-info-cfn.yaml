@@ -8,34 +8,33 @@ Description: >-
   - VPC
   - Subnet
   - Security Group
-
-# Metadata: 
+  - EventBridge Rule
 
 Parameters: 
   RepositoryName:
     Type: String
     Description: "The name of the ECR Repository"
-    Default: "notify-kobe-info-repository"
+    Default: "$REPO_NAME"
 
   ClusterName:
     Type: String
     Description: "The naem of the ECS Cluster"
-    Default: "notify-kobe-info-cluster"
+    Default: "$CLUSTER_NAME"
 
   TaskDefinitionFamily:
     Type: String
     Description: "The family name of the ECS task definition"
-    Default: "notify-kobe-info-family-name"
+    Default: "$TASK_DEFINITION_NAME"
 
   ContainerName:
     Type: String
     Description: "The name of the container in the task definition"
-    Default: "notify-kobe-info-container-name"
+    Default: "$CONTAINER_NAME"
   
-  ContainerImage:
+  ImageName:
     Type: String
-    Description: "The image of the container"
-    Default: "notify-kobe-info-container-image"
+    Description: "The Image Name of the container"
+    Default: "$IMAGE_NAME"
   
   ContainerMemory:
     Type: Number
@@ -47,14 +46,27 @@ Parameters:
     Description: "The number of CPU units to allocate to the container"
     Default: 256
 
+  SecurityGroupId:
+    Type: String
+    Description: "SG Id for ECS"
+    Default: "$SG_ID"
   
+  SubnetId:
+    Type: String
+    Description: "SubnetId for ECS"
+    Default: "$SUBNET_ID"
 
-# Mappings: 
-
-# Conditions: 
+  BucketName:
+    Type: String
+    Description: "The name of the S3 bucket"
+    Default: "$S3_BUCKET"
 
 Resources: 
-  
+  S3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref BucketName
+
   ECRRepository:
     Type: "AWS::ECR::Repository"
     Properties:
@@ -88,7 +100,6 @@ Resources:
                   - "ecr:GetDownloadUrlForLayer"
                   - "ecr:BatchGetImage"
                   - "ecr:BatchCheckLayerAvailability"
-                  - "ecr:GetAuthorizationToken"
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource: "*"
@@ -105,12 +116,43 @@ Resources:
       ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
       ContainerDefinitions:
         - Name: !Ref ContainerName
-          Image: !Ref ContainerImage
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageName}:latest
           Essential: true
           PortMappings:
             - ContainerPort: 80
               HostPort: 80
+  
+  EventBridgeRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: "Rule to trigger ECS task every day at 9 AM"
+      ScheduleExpression: "cron(0 9 * * ? *)"
+      State: "ENABLED"
+      Targets:
+        - Id: "EcsTarget"
+          Arn: !GetAtt ECSCluster.Arn
+          RoleArn: !GetAtt ECSExecutionRole.Arn
+          EcsParameters:
+            TaskDefinitionArn: !Ref ECSTaskDefinition
+            TaskCount: 1
+            LaunchType: "FARGATE"
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: "ENABLED"
+                Subnets:
+                  - !Ref SubnetId
+                SecurityGroups:
+                  - !Ref SecurityGroupId
 
+Outputs:
+  ECRRepositoryUri:
+    Description: "URI of the ECR repository"
+    Value: !GetAtt ECRRepository.RepositoryUri
 
+  ClusterName:
+    Description: "Name of the ECS cluster"
+    Value: !Ref ECSCluster
 
-# Outputs:
+  TaskDefinitionArn:
+    Description: "ARN of the ECS task definition"
+    Value: !Ref ECSTaskDefinition
